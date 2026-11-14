@@ -1,8 +1,8 @@
 # SEARCH.md — design note for this tiny-chess-01 entry
 
-Engine: `main.py` (3,782 bytes as committed). A zlib+b85 compressed payload
-plus unpacker; the payload is the original engine source written
-for this entry (`../dev/engine.py`). Python 3.13 stdlib only.
+Engine: `main.py` (3,823 bytes as committed). A zlib+b85 compressed payload
+plus unpacker; the payload is the v2 engine source
+(`../dev/variants/v2.py`). Python 3.13 stdlib only.
 No model calls, no clock, no randomness — fixed 60,000-node budget per move.
 
 ## Board and moves
@@ -23,7 +23,7 @@ No model calls, no clock, no randomness — fixed 60,000-node budget per move.
 - Null-move pruning, R=2, depth >= 3, never while in check.
 - Check extension: +1 depth while in check.
 - Late-move reductions: quiet moves after the first 3, depth >= 3, not
-  in check, searched first at depth-3 with a null window, re-searched at
+  in check, searched first at depth-2 with a null window, re-searched at
   full depth only if they beat alpha.
 - Quiescence: captures only, stand-pat, 16-ply cap, delta pruning
   (stand-pat + victim + 200 < alpha skips; promotions never pruned). In
@@ -33,21 +33,22 @@ No model calls, no clock, no randomness — fixed 60,000-node budget per move.
 
 - Material (P 100, N 320, B 330, R 500, Q 900) + piece-square tables
   (7x64, chr-encoded at 5 cp/step, decoded once at import), endgame king
-  table when non-pawn material <= 1400. Bishop pair +30.
+  table when non-pawn material <= 1400. Bishop pair +30. Tempo +10
+  for the side to move.
 
 ## Measured results (kit env + scorer, run locally without Docker)
 
-| trial | version | W-D-L | Elo |
-| --- | --- | --- | --- |
-| trial-0 | shipped (QS fix + LMR) | 1-3-4 | 1173 |
-| trial-1 | shipped | 3-1-4 | 1326 |
-| trial-2 | shipped | 2-3-3 | 1326 |
+v2 (shipped): null-window probe d-2 (was d-3) + tempo bonus ±10.
+| trial | W-D-L | Elo |
+| --- | --- | --- |
+| trial-0 | 2-2-4 | 1253 |
+| trial-1 | 1-5-2 | 1326 |
+| trial-2 | 2-4-2 | 1396 |
 
-Shipped engine, mean over 3 practice trials: **1275**. Entry floor 1154
-(cleared every trial); prize baseline is the sunfish mean ~1325, so a prize
-needs a favourable final draw — the engine scored 1326 on two of three
-practice sets. It beats depth-2/3/4 regularly; losses concentrate vs the
-nodes-250k/500k/1M/2M rungs.
+Mean over 3 practice trials: **1325** (v1 shipped engine: 1275).
+Floor 1154 cleared every trial; prize baseline ~1325 (sunfish mean).
+Rejected variants: history heuristic (1246), futility pruning
+(1112–1165), repetition detection (1275) — each made it worse.
 
 ## Tests and cost
 
